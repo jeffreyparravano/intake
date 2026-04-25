@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Intake</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400&family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f0e8;
+      --card: #fffcf7;
+      --text: #1a1a18;
+      --muted: #9a9488;
+      --border: #e0d9cc;
+      --cal: #c84b2f;
+      --pro: #2d6a4f;
+      --carb: #e07b2a;
+      --fat: #5b4fcf;
+      --input-bg: #f0ebe0;
+    }
+
+    body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; font-weight: 300; min-height: 100vh; padding: 2rem 1.25rem 6rem; max-width: 420px; margin: 0 auto; }
+
+    header { margin-bottom: 2.5rem; opacity: 0; animation: up 0.7s ease 0.1s forwards; }
+    header h1 { font-family: 'Playfair Display', serif; font-size: 2.4rem; font-weight: 400; letter-spacing: -0.02em; line-height: 1; }
+    header p { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-top: 0.4rem; }
+
+    .totals { background: var(--text); color: var(--bg); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; opacity: 0; animation: up 0.7s ease 0.2s forwards; }
+    .totals-cal { font-family: 'Playfair Display', serif; font-size: 3.8rem; font-weight: 500; line-height: 1; letter-spacing: -0.03em; }
+    .totals-cal span { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 300; letter-spacing: 0.1em; opacity: 0.5; margin-left: 4px; vertical-align: middle; }
+    .totals-macros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-top: 1.25rem; }
+    .macro-chip { background: rgba(255,255,255,0.07); border-radius: 10px; padding: 0.6rem 0.75rem; }
+    .macro-chip .label { font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.5; margin-bottom: 0.2rem; }
+    .macro-chip .value { font-size: 1.2rem; font-family: 'Playfair Display', serif; }
+    .macro-chip .unit { font-size: 9px; opacity: 0.4; margin-left: 2px; }
+    .macro-chip.pro .value { color: #6fcf97; }
+    .macro-chip.carb .value { color: #f2994a; }
+    .macro-chip.fat .value { color: #bb9aff; }
+
+    .goal-section { margin-bottom: 1.5rem; opacity: 0; animation: up 0.7s ease 0.3s forwards; }
+    .goal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+    .goal-header span { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+    .goal-header button { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; background: none; border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; color: var(--muted); cursor: pointer; transition: all 0.2s; }
+    .goal-header button:hover { border-color: var(--text); color: var(--text); }
+    .bar-track { background: var(--border); border-radius: 4px; height: 6px; overflow: hidden; }
+    .bar-fill { height: 100%; background: var(--cal); border-radius: 4px; transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); max-width: 100%; }
+
+    .form-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1.25rem; margin-bottom: 1.5rem; opacity: 0; animation: up 0.7s ease 0.35s forwards; }
+    .form-card h2 { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; }
+
+    /* Search field with autocomplete */
+    .search-wrap { position: relative; margin-bottom: 0.75rem; }
+    .search-wrap label { display: block; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.35rem; }
+    .search-row { display: flex; gap: 0.5rem; align-items: center; }
+    .search-row input { flex: 1; background: var(--input-bg); border: 1px solid transparent; border-radius: 8px; padding: 0.6rem 0.75rem; font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 300; color: var(--text); outline: none; transition: border-color 0.2s; }
+    .search-row input:focus { border-color: var(--text); }
+    .search-row input::placeholder { color: var(--muted); opacity: 0.6; }
+    .search-btn { background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.8rem; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; color: var(--muted); cursor: pointer; white-space: nowrap; transition: all 0.2s; flex-shrink: 0; }
+    .search-btn:hover { border-color: var(--text); color: var(--text); }
+    .search-btn:disabled { opacity: 0.4; cursor: default; }
+
+    .suggestions { position: absolute; top: 100%; left: 0; right: 0; background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); z-index: 50; margin-top: 4px; overflow: hidden; max-height: 260px; overflow-y: auto; }
+    .suggestion-item { padding: 0.75rem 1rem; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid var(--border); }
+    .suggestion-item:last-child { border-bottom: none; }
+    .suggestion-item:hover, .suggestion-item.active { background: var(--input-bg); }
+    .suggestion-item .s-name { font-size: 12px; font-weight: 400; margin-bottom: 0.2rem; }
+    .suggestion-item .s-meta { font-size: 10px; color: var(--muted); display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .suggestion-item .s-cal { color: var(--cal); }
+    .suggestion-item .s-brand { font-size: 9px; color: var(--muted); opacity: 0.7; margin-bottom: 0.15rem; }
+    .suggestion-item .s-serving { font-size: 9px; color: var(--muted); opacity: 0.6; }
+    .no-results { padding: 1rem; text-align: center; font-size: 11px; color: var(--muted); }
+    .searching { padding: 1rem; text-align: center; font-size: 11px; color: var(--muted); letter-spacing: 0.1em; }
+
+    .autofill-note { font-size: 9px; color: var(--pro); letter-spacing: 0.1em; margin-top: 0.35rem; opacity: 0; transition: opacity 0.3s; }
+    .autofill-note.show { opacity: 1; }
+
+    .field { margin-bottom: 0.75rem; }
+    .field label { display: block; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.35rem; }
+    .field input { width: 100%; background: var(--input-bg); border: 1px solid transparent; border-radius: 8px; padding: 0.6rem 0.75rem; font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 300; color: var(--text); outline: none; transition: border-color 0.2s; }
+    .field input:focus { border-color: var(--text); }
+    .field input::placeholder { color: var(--muted); opacity: 0.6; }
+    .field input.autofilled { border-color: var(--pro); background: #f0faf5; }
+
+    .macro-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 0.75rem; }
+    .macro-row .field { margin-bottom: 0; }
+    .macro-row .field label.pro { color: var(--pro); }
+    .macro-row .field label.carb { color: var(--carb); }
+    .macro-row .field label.fat { color: var(--fat); }
+
+    .serving-row { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; align-items: flex-end; }
+    .serving-row .field { flex: 1; margin-bottom: 0; }
+    .serving-row select { width: 100%; background: var(--input-bg); border: 1px solid transparent; border-radius: 8px; padding: 0.6rem 0.75rem; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 300; color: var(--text); outline: none; appearance: none; cursor: pointer; }
+
+    .add-btn { width: 100%; background: var(--text); color: var(--bg); border: none; border-radius: 10px; padding: 0.85rem; font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer; transition: opacity 0.2s, transform 0.15s; }
+    .add-btn:active { transform: scale(0.98); opacity: 0.85; }
+
+    .log-section { opacity: 0; animation: up 0.7s ease 0.45s forwards; }
+    .log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+    .log-header span { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+    .log-header button { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; background: none; border: none; color: var(--muted); cursor: pointer; padding: 0; }
+    .log-header button:hover { color: var(--cal); }
+
+    .entry { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 0.9rem 1rem; margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center; animation: up 0.4s ease forwards; }
+    .entry-left .name { font-size: 13px; font-weight: 400; margin-bottom: 0.25rem; }
+    .entry-left .macros { font-size: 10px; color: var(--muted); display: flex; gap: 0.75rem; }
+    .entry-left .macros .p { color: var(--pro); }
+    .entry-left .macros .c { color: var(--carb); }
+    .entry-left .macros .f { color: var(--fat); }
+    .entry-right { display: flex; align-items: center; gap: 0.75rem; }
+    .entry-right .kcal { font-family: 'Playfair Display', serif; font-size: 1.3rem; }
+    .entry-right button { background: none; border: none; color: var(--border); cursor: pointer; font-size: 16px; line-height: 1; transition: color 0.2s; padding: 0; }
+    .entry-right button:hover { color: var(--cal); }
+    .empty { text-align: center; font-size: 11px; letter-spacing: 0.1em; color: var(--muted); padding: 2rem 0; }
+
+    .modal-overlay { position: fixed; inset: 0; background: rgba(26,26,24,0.6); display: flex; align-items: flex-end; justify-content: center; z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal { background: var(--card); border-radius: 20px 20px 0 0; padding: 2rem 1.5rem 3rem; width: 100%; max-width: 420px; transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .modal-overlay.open .modal { transform: translateY(0); }
+    .modal h2 { font-family: 'Playfair Display', serif; font-size: 1.5rem; margin-bottom: 1.5rem; }
+    .modal .add-btn { margin-top: 1rem; }
+
+    @keyframes up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Intake</h1>
+  <p id="date-label"></p>
+</header>
+
+<div class="totals">
+  <div class="totals-cal"><span id="total-cal">0</span><span>kcal</span></div>
+  <div class="totals-macros">
+    <div class="macro-chip pro"><div class="label">Protein</div><div class="value"><span id="total-pro">0</span><span class="unit">g</span></div></div>
+    <div class="macro-chip carb"><div class="label">Carbs</div><div class="value"><span id="total-carb">0</span><span class="unit">g</span></div></div>
+    <div class="macro-chip fat"><div class="label">Fat</div><div class="value"><span id="total-fat">0</span><span class="unit">g</span></div></div>
+  </div>
+</div>
+
+<div class="goal-section">
+  <div class="goal-header">
+    <span>Goal: <span id="goal-label">2000</span> kcal</span>
+    <button onclick="openGoalModal()">Edit</button>
+  </div>
+  <div class="bar-track"><div class="bar-fill" id="goal-bar" style="width:0%"></div></div>
+</div>
+
+<div class="form-card">
+  <h2>Add meal</h2>
+
+  <!-- Food search -->
+  <div class="search-wrap">
+    <label>Search food</label>
+    <div class="search-row">
+      <input type="text" id="f-search" placeholder="e.g. chicken breast, banana..." autocomplete="off" />
+      <button class="search-btn" id="search-btn" onclick="searchFood()">Search</button>
+    </div>
+    <div class="autofill-note" id="autofill-note">✓ Macros auto-filled — adjust if needed</div>
+    <div class="suggestions" id="suggestions" style="display:none"></div>
+  </div>
+
+  <!-- Serving size (shown after autofill) -->
+  <div id="serving-section" style="display:none">
+    <div class="serving-row">
+      <div class="field">
+        <label>Serving size (g)</label>
+        <input type="number" id="f-serving" inputmode="decimal" placeholder="100" oninput="recalcFromServing()" />
+      </div>
+    </div>
+  </div>
+
+  <div class="field"><label>Name</label><input type="text" id="f-name" placeholder="Meal name" /></div>
+  <div class="field"><label>Calories (kcal)</label><input type="number" id="f-cal" placeholder="350" inputmode="numeric" /></div>
+  <div class="macro-row">
+    <div class="field"><label class="pro">Protein (g)</label><input type="number" id="f-pro" placeholder="30" inputmode="numeric" /></div>
+    <div class="field"><label class="carb">Carbs (g)</label><input type="number" id="f-carb" placeholder="20" inputmode="numeric" /></div>
+    <div class="field"><label class="fat">Fat (g)</label><input type="number" id="f-fat" placeholder="10" inputmode="numeric" /></div>
+  </div>
+  <button class="add-btn" onclick="addEntry()">+ Add</button>
+</div>
+
+<div class="log-section">
+  <div class="log-header">
+    <span>Today's log</span>
+    <button onclick="clearAll()">Clear all</button>
+  </div>
+  <div id="log-list"></div>
+</div>
+
+<div class="modal-overlay" id="goal-modal" onclick="closeGoalModal(event)">
+  <div class="modal">
+    <h2>Daily Goal</h2>
+    <div class="field"><label>Calorie target (kcal)</label><input type="number" id="goal-input" inputmode="numeric" /></div>
+    <button class="add-btn" onclick="saveGoal()">Save</button>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEY = 'intake_log_v1';
+  const GOAL_KEY = 'intake_goal_v1';
+  let entries = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  let goal = parseInt(localStorage.getItem(GOAL_KEY) || '2000');
+
+  // Per-100g base values from last search selection
+  let baseNutrients = null;
+
+  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); }
+  function num(id) { return parseFloat(document.getElementById(id).value) || 0; }
+  function str(id) { return document.getElementById(id).value.trim(); }
+  function setVal(id, v) { document.getElementById(id).value = v !== null && v !== undefined ? Math.round(v * 10) / 10 : ''; }
+
+  /* ── FOOD SEARCH (USDA FoodData Central) ── */
+  let searchTimeout;
+  const searchInput = document.getElementById('f-search');
+  const suggestionsEl = document.getElementById('suggestions');
+
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    const q = searchInput.value.trim();
+    if (q.length < 2) { hideSuggestions(); return; }
+    searchTimeout = setTimeout(() => searchFood(), 400);
+  });
+
+  searchInput.addEventListener('keydown', e => {
+    const items = suggestionsEl.querySelectorAll('.suggestion-item');
+    let active = suggestionsEl.querySelector('.suggestion-item.active');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = active ? (active.nextElementSibling || items[0]) : items[0];
+      if (active) active.classList.remove('active');
+      if (next) next.classList.add('active');
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prev = active ? (active.previousElementSibling || items[items.length-1]) : items[items.length-1];
+      if (active) active.classList.remove('active');
+      if (prev) prev.classList.add('active');
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (active) active.click();
+      else searchFood();
+    } else if (e.key === 'Escape') {
+      hideSuggestions();
+    }
+  });
+
+  async function searchFood() {
+    const q = searchInput.value.trim();
+    if (!q) return;
+    const btn = document.getElementById('search-btn');
+    btn.disabled = true;
+    btn.textContent = '...';
+    showSuggestions('<div class="searching">Searching...</div>');
+
+    try {
+      // USDA FoodData Central — demo key, free, no signup
+      const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=8&dataType=SR%20Legacy,Foundation,Branded&api_key=DEMO_KEY`;
+      const res = await fetch(url);
+      const data = await res.json();
+      renderSuggestions(data.foods || []);
+    } catch(err) {
+      showSuggestions('<div class="no-results">Search unavailable — enter values manually.</div>');
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Search';
+  }
+
+  function renderSuggestions(foods) {
+    if (!foods.length) { showSuggestions('<div class="no-results">No results found.</div>'); return; }
+
+    const html = foods.map((f, i) => {
+      const nutrients = f.foodNutrients || [];
+      const cal  = getNutrient(nutrients, 'Energy', 'ENERC_KCAL') || 0;
+      const pro  = getNutrient(nutrients, 'Protein') || 0;
+      const carb = getNutrient(nutrients, 'Carbohydrate, by difference') || 0;
+      const fat  = getNutrient(nutrients, 'Total lipid (fat)') || 0;
+      const brand = f.brandOwner || f.brandName || '';
+      const serving = f.servingSize ? `${f.servingSize}${f.servingSizeUnit || 'g'} serving` : 'per 100g';
+
+      return `<div class="suggestion-item" onclick="selectFood(${i})" data-index="${i}">
+        ${brand ? `<div class="s-brand">${brand}</div>` : ''}
+        <div class="s-name">${f.description}</div>
+        <div class="s-serving">${serving}</div>
+        <div class="s-meta">
+          <span class="s-cal">${Math.round(cal)} kcal</span>
+          <span>P ${Math.round(pro)}g</span>
+          <span>C ${Math.round(carb)}g</span>
+          <span>F ${Math.round(fat)}g</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    showSuggestions(html);
+    window._searchResults = foods;
+  }
+
+  function getNutrient(nutrients, ...names) {
+    for (const name of names) {
+      const found = nutrients.find(n => n.nutrientName && n.nutrientName.toLowerCase().includes(name.toLowerCase()));
+      if (found) return found.value;
+    }
+    return null;
+  }
+
+  function selectFood(index) {
+    const f = window._searchResults[index];
+    const nutrients = f.foodNutrients || [];
+    const cal  = getNutrient(nutrients, 'Energy', 'ENERC_KCAL') || 0;
+    const pro  = getNutrient(nutrients, 'Protein') || 0;
+    const carb = getNutrient(nutrients, 'Carbohydrate, by difference') || 0;
+    const fat  = getNutrient(nutrients, 'Total lipid (fat)') || 0;
+
+    // Store per-100g base (USDA returns per 100g for SR/Foundation)
+    const servingSize = f.servingSize || 100;
+    const servingUnit = (f.servingSizeUnit || 'g').toLowerCase();
+    const isPerServing = f.dataType === 'Branded' && f.servingSize;
+
+    if (isPerServing) {
+      // Branded: values are per serving — store per-gram base
+      baseNutrients = { cal: cal / servingSize, pro: pro / servingSize, carb: carb / servingSize, fat: fat / servingSize };
+      document.getElementById('f-serving').value = Math.round(servingSize);
+    } else {
+      // SR Legacy / Foundation: values are per 100g
+      baseNutrients = { cal: cal / 100, pro: pro / 100, carb: carb / 100, fat: fat / 100 };
+      document.getElementById('f-serving').value = 100;
+    }
+
+    document.getElementById('f-name').value = f.description;
+    setVal('f-cal',  cal  * (isPerServing ? 1 : 1));
+    setVal('f-pro',  pro  * (isPerServing ? 1 : 1));
+    setVal('f-carb', carb * (isPerServing ? 1 : 1));
+    setVal('f-fat',  fat  * (isPerServing ? 1 : 1));
+
+    // Mark fields as autofilled
+    ['f-cal','f-pro','f-carb','f-fat'].forEach(id => document.getElementById(id).classList.add('autofilled'));
+
+    document.getElementById('autofill-note').classList.add('show');
+    document.getElementById('serving-section').style.display = 'block';
+    searchInput.value = f.description;
+    hideSuggestions();
+  }
+
+  function recalcFromServing() {
+    if (!baseNutrients) return;
+    const g = parseFloat(document.getElementById('f-serving').value) || 100;
+    setVal('f-cal',  baseNutrients.cal  * g);
+    setVal('f-pro',  baseNutrients.pro  * g);
+    setVal('f-carb', baseNutrients.carb * g);
+    setVal('f-fat',  baseNutrients.fat  * g);
+  }
+
+  function showSuggestions(html) { suggestionsEl.innerHTML = html; suggestionsEl.style.display = 'block'; }
+  function hideSuggestions() { suggestionsEl.style.display = 'none'; }
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.search-wrap')) hideSuggestions();
+  });
+
+  /* ── ENTRY LOG ── */
+  function addEntry() {
+    const name = str('f-name');
+    if (!name) { document.getElementById('f-name').focus(); return; }
+    entries.push({ id: Date.now(), name, cal: num('f-cal'), pro: num('f-pro'), carb: num('f-carb'), fat: num('f-fat') });
+    save(); render();
+    ['f-name','f-cal','f-pro','f-carb','f-fat'].forEach(id => {
+      const el = document.getElementById(id);
+      el.value = '';
+      el.classList.remove('autofilled');
+    });
+    searchInput.value = '';
+    document.getElementById('autofill-note').classList.remove('show');
+    document.getElementById('serving-section').style.display = 'none';
+    baseNutrients = null;
+    document.getElementById('f-search').focus();
+  }
+
+  function removeEntry(id) { entries = entries.filter(e => e.id !== id); save(); render(); }
+  function clearAll() { if (!entries.length) return; entries = []; save(); render(); }
+
+  function render() {
+    const totCal  = entries.reduce((s,e) => s + e.cal, 0);
+    const totPro  = entries.reduce((s,e) => s + e.pro, 0);
+    const totCarb = entries.reduce((s,e) => s + e.carb, 0);
+    const totFat  = entries.reduce((s,e) => s + e.fat, 0);
+    document.getElementById('total-cal').textContent  = Math.round(totCal);
+    document.getElementById('total-pro').textContent  = Math.round(totPro);
+    document.getElementById('total-carb').textContent = Math.round(totCarb);
+    document.getElementById('total-fat').textContent  = Math.round(totFat);
+    const pct = Math.min((totCal / goal) * 100, 100);
+    document.getElementById('goal-bar').style.width = pct + '%';
+    document.getElementById('goal-label').textContent = goal;
+    const list = document.getElementById('log-list');
+    if (!entries.length) { list.innerHTML = '<p class="empty">Nothing logged yet.</p>'; return; }
+    list.innerHTML = [...entries].reverse().map(e => `
+      <div class="entry">
+        <div class="entry-left">
+          <div class="name">${e.name}</div>
+          <div class="macros"><span class="p">P ${Math.round(e.pro)}g</span><span class="c">C ${Math.round(e.carb)}g</span><span class="f">F ${Math.round(e.fat)}g</span></div>
+        </div>
+        <div class="entry-right">
+          <div class="kcal">${Math.round(e.cal)}</div>
+          <button onclick="removeEntry(${e.id})">×</button>
+        </div>
+      </div>`).join('');
+  }
+
+  function openGoalModal() { document.getElementById('goal-input').value = goal; document.getElementById('goal-modal').classList.add('open'); }
+  function closeGoalModal(e) { if (e.target === document.getElementById('goal-modal')) document.getElementById('goal-modal').classList.remove('open'); }
+  function saveGoal() {
+    const v = parseInt(document.getElementById('goal-input').value);
+    if (v > 0) { goal = v; localStorage.setItem(GOAL_KEY, goal); render(); }
+    document.getElementById('goal-modal').classList.remove('open');
+  }
+
+  document.getElementById('date-label').textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  ['f-name','f-cal','f-pro','f-carb','f-fat'].forEach(id => document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') addEntry(); }));
+  render();
+</script>
+</body>
+</html>
