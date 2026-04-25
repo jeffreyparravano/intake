@@ -257,7 +257,7 @@
 
     try {
       // USDA FoodData Central — demo key, free, no signup
-      const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=8&dataType=SR%20Legacy,Foundation,Branded&api_key=DEMO_KEY`;
+      const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=8&dataType=SR%20Legacy,Foundation,Branded&api_key=FlD1PRocZOxqEH0qIZ8hG1XNBwV8hmynhVR8qjUf`;
       const res = await fetch(url);
       const data = await res.json();
       renderSuggestions(data.foods || []);
@@ -272,12 +272,9 @@
   function renderSuggestions(foods) {
     if (!foods.length) { showSuggestions('<div class="no-results">No results found.</div>'); return; }
 
+    window._searchResults = foods;
     const html = foods.map((f, i) => {
-      const nutrients = f.foodNutrients || [];
-      const cal  = getNutrient(nutrients, 'Energy', 'ENERC_KCAL') || 0;
-      const pro  = getNutrient(nutrients, 'Protein') || 0;
-      const carb = getNutrient(nutrients, 'Carbohydrate, by difference') || 0;
-      const fat  = getNutrient(nutrients, 'Total lipid (fat)') || 0;
+      const m = extractMacros(f.foodNutrients || []);
       const brand = f.brandOwner || f.brandName || '';
       const serving = f.servingSize ? `${f.servingSize}${f.servingSizeUnit || 'g'} serving` : 'per 100g';
 
@@ -286,54 +283,60 @@
         <div class="s-name">${f.description}</div>
         <div class="s-serving">${serving}</div>
         <div class="s-meta">
-          <span class="s-cal">${Math.round(cal)} kcal</span>
-          <span>P ${Math.round(pro)}g</span>
-          <span>C ${Math.round(carb)}g</span>
-          <span>F ${Math.round(fat)}g</span>
+          <span class="s-cal">${Math.round(m.cal)} kcal</span>
+          <span>P ${Math.round(m.pro)}g</span>
+          <span>C ${Math.round(m.carb)}g</span>
+          <span>F ${Math.round(m.fat)}g</span>
         </div>
       </div>`;
     }).join('');
 
     showSuggestions(html);
-    window._searchResults = foods;
   }
 
-  function getNutrient(nutrients, ...names) {
-    for (const name of names) {
-      const found = nutrients.find(n => n.nutrientName && n.nutrientName.toLowerCase().includes(name.toLowerCase()));
-      if (found) return found.value;
+  // USDA nutrient IDs — consistent across all food types
+  const NID = { cal: [1008, 2047, 2048], pro: [1003], carb: [1005], fat: [1004] };
+
+  function getNutrient(nutrients, ids) {
+    for (const id of ids) {
+      const found = nutrients.find(n => n.nutrientId === id || n.nutrientNumber === String(id));
+      if (found && found.value != null) return found.value;
     }
     return null;
+  }
+
+  function extractMacros(nutrients) {
+    return {
+      cal:  getNutrient(nutrients, NID.cal)  || 0,
+      pro:  getNutrient(nutrients, NID.pro)  || 0,
+      carb: getNutrient(nutrients, NID.carb) || 0,
+      fat:  getNutrient(nutrients, NID.fat)  || 0,
+    };
   }
 
   function selectFood(index) {
     const f = window._searchResults[index];
     const nutrients = f.foodNutrients || [];
-    const cal  = getNutrient(nutrients, 'Energy', 'ENERC_KCAL') || 0;
-    const pro  = getNutrient(nutrients, 'Protein') || 0;
-    const carb = getNutrient(nutrients, 'Carbohydrate, by difference') || 0;
-    const fat  = getNutrient(nutrients, 'Total lipid (fat)') || 0;
+    const m = extractMacros(nutrients);
 
-    // Store per-100g base (USDA returns per 100g for SR/Foundation)
-    const servingSize = f.servingSize || 100;
-    const servingUnit = (f.servingSizeUnit || 'g').toLowerCase();
-    const isPerServing = f.dataType === 'Branded' && f.servingSize;
+    // USDA SR Legacy & Foundation = per 100g; Branded = per serving size
+    const isBranded = f.dataType === 'Branded' && f.servingSize;
+    const servingSize = isBranded ? f.servingSize : 100;
 
-    if (isPerServing) {
-      // Branded: values are per serving — store per-gram base
-      baseNutrients = { cal: cal / servingSize, pro: pro / servingSize, carb: carb / servingSize, fat: fat / servingSize };
-      document.getElementById('f-serving').value = Math.round(servingSize);
-    } else {
-      // SR Legacy / Foundation: values are per 100g
-      baseNutrients = { cal: cal / 100, pro: pro / 100, carb: carb / 100, fat: fat / 100 };
-      document.getElementById('f-serving').value = 100;
-    }
+    // Store per-gram base for recalculation
+    baseNutrients = {
+      cal:  m.cal  / servingSize,
+      pro:  m.pro  / servingSize,
+      carb: m.carb / servingSize,
+      fat:  m.fat  / servingSize,
+    };
 
+    document.getElementById('f-serving').value = Math.round(servingSize);
     document.getElementById('f-name').value = f.description;
-    setVal('f-cal',  cal  * (isPerServing ? 1 : 1));
-    setVal('f-pro',  pro  * (isPerServing ? 1 : 1));
-    setVal('f-carb', carb * (isPerServing ? 1 : 1));
-    setVal('f-fat',  fat  * (isPerServing ? 1 : 1));
+    setVal('f-cal',  m.cal);
+    setVal('f-pro',  m.pro);
+    setVal('f-carb', m.carb);
+    setVal('f-fat',  m.fat);
 
     // Mark fields as autofilled
     ['f-cal','f-pro','f-carb','f-fat'].forEach(id => document.getElementById(id).classList.add('autofilled'));
